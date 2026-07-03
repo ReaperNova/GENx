@@ -20,13 +20,19 @@ class Config:
     RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
     RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
 
-    # Shipping & SMS Notifications
-    SHIPROCKET_EMAIL = os.getenv("SHIPROCKET_EMAIL", "")
+    # Shiprocket — single delivery gateway (aggregates 25+ couriers automatically)
+    SHIPROCKET_EMAIL    = os.getenv("SHIPROCKET_EMAIL", "")
     SHIPROCKET_PASSWORD = os.getenv("SHIPROCKET_PASSWORD", "")
+
+    # Shiprocket pickup / warehouse location
+    SHIPROCKET_PICKUP_PINCODE = os.getenv("SHIPROCKET_PICKUP_PINCODE", "401303")
+    SHIPROCKET_PICKUP_NAME    = os.getenv("SHIPROCKET_PICKUP_NAME",    "GenX Store")
+    SHIPROCKET_PICKUP_ADDRESS = os.getenv("SHIPROCKET_PICKUP_ADDRESS", "Virar West")
+    SHIPROCKET_PICKUP_CITY    = os.getenv("SHIPROCKET_PICKUP_CITY",    "Virar")
+    SHIPROCKET_PICKUP_STATE   = os.getenv("SHIPROCKET_PICKUP_STATE",   "Maharashtra")
+
+    # SMS Notifications
     FAST2SMS_API_KEY = os.getenv("FAST2SMS_API_KEY", "")
-    DELHIVERY_TOKEN = os.getenv("DELHIVERY_TOKEN", "")
-    DTDC_TOKEN = os.getenv("DTDC_TOKEN", "")
-    DTDC_API_KEY = os.getenv("DTDC_API_KEY", "")
 
     # Admin
     ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@genx.com")
@@ -37,8 +43,7 @@ class Config:
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max upload
     ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "gif"}
 
-    # Default delivery partner
-    DEFAULT_DELIVERY_PARTNER = os.getenv("DEFAULT_DELIVERY_PARTNER", "shiprocket")
+    # Delivery is fully automated via Shiprocket — no manual partner selection needed
 
     # Brand info passed to all templates
     BRAND_NAME = BRAND_NAME

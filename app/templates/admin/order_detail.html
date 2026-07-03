@@ -20,13 +20,14 @@
         <span style="font-family:var(--font-ui); font-weight:700; font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em;">Order Items</span>
       </div>
       <div class="table-responsive"><table class="data-table">
-        <thead><tr><th>Product</th><th>Size</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
+        <thead><tr><th>Product</th><th>Size</th><th>Qty</th><th>Weight</th><th>Unit Price</th><th>Total</th></tr></thead>
         <tbody>
           {% for item in order.items %}
           <tr>
             <td style="color:var(--text-primary); font-weight:600;">{{ item.product.name }}</td>
             <td>{{ item.size or '—' }}</td>
             <td>{{ item.quantity }}</td>
+            <td style="color:var(--text-muted); font-size:0.8rem;">{{ item.product.weight or 0.5 }}kg</td>
             <td>₹{{ "{:,.0f}".format(item.price_at_purchase) }}</td>
             <td style="color:var(--accent); font-weight:700;">₹{{ "{:,.0f}".format(item.price_at_purchase * item.quantity) }}</td>
           </tr>
@@ -55,24 +56,101 @@
       </div>
     </div>
 
-    <!-- Delivery tracking -->
-    {% if order.tracking_id %}
-    <div class="admin-card">
-      <div class="admin-card-header">
-        <span style="font-family:var(--font-ui); font-weight:700; font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em;">Delivery Tracking</span>
+    <!-- ── Shiprocket Courier Preview (shown before booking) ── -->
+    {% if order.status in ['pending', 'paid'] and not order.awb_number %}
+    <div class="admin-card" id="courier-preview-card" style="margin-bottom:1.5rem; border:1px solid rgba(232,255,74,0.15);">
+      <div class="admin-card-header" style="background:rgba(232,255,74,0.04);">
+        <span style="font-family:var(--font-ui); font-weight:700; font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em;">
+          📦 Estimated Courier (via Shiprocket)
+        </span>
+        <span id="preview-refresh" style="font-size:0.75rem; color:var(--text-dim); cursor:pointer;" onclick="loadCourierPreview()">↻ Refresh</span>
       </div>
-      <div style="padding:1.5rem; display:flex; flex-direction:column; gap:0.5rem;">
-        <div style="display:flex; gap:1rem;">
-          <span style="font-size:0.75rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); min-width:100px;">Partner</span>
-          <span style="color:var(--text-primary);">{{ order.delivery_partner | title }}</span>
-        </div>
-        <div style="display:flex; gap:1rem;">
-          <span style="font-size:0.75rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); min-width:100px;">Tracking ID</span>
-          <span style="color:var(--accent); font-family:monospace;">{{ order.tracking_id }}</span>
+      <div style="padding:1.5rem;" id="preview-body">
+        <div style="display:flex; align-items:center; gap:0.75rem; color:var(--text-dim); font-size:0.875rem;">
+          <div class="spinner" style="width:16px; height:16px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+          Fetching live courier rates…
         </div>
       </div>
     </div>
     {% endif %}
+
+    <!-- ── Shiprocket Tracking (shown after booking) ── -->
+    {% if order.awb_number %}
+    <div class="admin-card" style="margin-bottom:1.5rem; border:1px solid rgba(232,255,74,0.2);">
+      <div class="admin-card-header" style="background:rgba(232,255,74,0.05);">
+        <span style="font-family:var(--font-ui); font-weight:700; font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em;">🚚 Shiprocket Shipment</span>
+      </div>
+      <div style="padding:1.5rem; display:flex; flex-direction:column; gap:0.875rem;">
+
+        <!-- Courier + Rate -->
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div>
+            <div style="font-size:0.7rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); margin-bottom:0.3rem;">Courier Partner</div>
+            <div style="font-weight:700; font-size:1rem; color:var(--text-primary);">{{ order.courier_name or 'Shiprocket' }}</div>
+          </div>
+          {% if order.courier_rate %}
+          <div style="background:rgba(232,255,74,0.1); border:1px solid rgba(232,255,74,0.3); border-radius:var(--radius); padding:0.4rem 0.85rem; font-weight:700; color:var(--accent);">
+            ₹{{ "{:.0f}".format(order.courier_rate) }}
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- AWB -->
+        <div>
+          <div style="font-size:0.7rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); margin-bottom:0.3rem;">AWB / Tracking Number</div>
+          <div style="font-family:monospace; font-size:1rem; color:var(--accent); letter-spacing:0.05em;">{{ order.awb_number }}</div>
+        </div>
+
+        <!-- Tracking URL -->
+        {% if order.tracking_url %}
+        <a href="{{ order.tracking_url }}" target="_blank" rel="noopener"
+           style="display:inline-flex; align-items:center; gap:0.5rem; background:rgba(232,255,74,0.08); border:1px solid rgba(232,255,74,0.25); border-radius:var(--radius); padding:0.6rem 1rem; color:var(--accent); font-weight:600; font-size:0.875rem; text-decoration:none; transition:background 0.2s;"
+           onmouseover="this.style.background='rgba(232,255,74,0.16)'"
+           onmouseout="this.style.background='rgba(232,255,74,0.08)'">
+          🔗 Track Shipment ↗
+        </a>
+        {% endif %}
+
+        <!-- Live Status from Shiprocket -->
+        {% if tracking_info %}
+        <div style="border-top:1px solid var(--border); padding-top:0.875rem; margin-top:0.25rem;">
+          <div style="font-size:0.7rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); margin-bottom:0.4rem;">Live Status</div>
+          {% if tracking_info.success %}
+          <div style="display:flex; flex-direction:column; gap:0.3rem;">
+            <div style="font-weight:600; color:var(--text-primary);">{{ tracking_info.status }}</div>
+            {% if tracking_info.current_location %}
+            <div style="font-size:0.8rem; color:var(--text-muted);">📍 {{ tracking_info.current_location }}</div>
+            {% endif %}
+            {% if tracking_info.etd %}
+            <div style="font-size:0.8rem; color:var(--text-muted);">🗓 ETA: {{ tracking_info.etd }}</div>
+            {% endif %}
+          </div>
+          {% else %}
+          <div style="font-size:0.8rem; color:var(--text-dim);">{{ tracking_info.message or 'Status unavailable' }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Shiprocket IDs (for reference) -->
+        <div style="border-top:1px solid var(--border); padding-top:0.75rem; margin-top:0.25rem; display:flex; gap:2rem;">
+          {% if order.shiprocket_order_id %}
+          <div>
+            <div style="font-size:0.65rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-dim);">SR Order ID</div>
+            <div style="font-family:monospace; font-size:0.75rem; color:var(--text-muted);">{{ order.shiprocket_order_id }}</div>
+          </div>
+          {% endif %}
+          {% if order.shiprocket_shipment_id %}
+          <div>
+            <div style="font-size:0.65rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-dim);">SR Shipment ID</div>
+            <div style="font-family:monospace; font-size:0.75rem; color:var(--text-muted);">{{ order.shiprocket_shipment_id }}</div>
+          </div>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+    {% endif %}
+
   </div>
 
   <!-- Right -->
@@ -93,6 +171,12 @@
           <span {% if loop.last %}style="color:var(--accent); font-family:var(--font-display); font-size:1.5rem;"{% endif %}>{{ val }}</span>
         </div>
         {% endfor %}
+        {% if order.courier_rate %}
+        <div style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--border); display:flex; justify-content:space-between; font-size:0.8rem; color:var(--text-dim);">
+          <span>Courier ({{ order.courier_name or 'Shiprocket' }})</span>
+          <span>₹{{ "{:.0f}".format(order.courier_rate) }}</span>
+        </div>
+        {% endif %}
         {% if order.payment_id %}
         <div style="margin-top:1rem; font-size:0.75rem; color:var(--text-dim);">
           Payment ID: <span style="color:var(--text-muted); font-family:monospace;">{{ order.payment_id }}</span>
@@ -101,12 +185,19 @@
       </div>
     </div>
 
-    <!-- Update status -->
+    <!-- Update status — no delivery partner selector, Shiprocket is automatic -->
     <div class="admin-card">
       <div class="admin-card-header">
         <span style="font-family:var(--font-ui); font-weight:700; font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em;">Update Status</span>
       </div>
       <div style="padding:1.5rem;">
+
+        <!-- Shiprocket indicator -->
+        <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:1.25rem; padding:0.7rem 0.875rem; background:rgba(232,255,74,0.05); border:1px solid rgba(232,255,74,0.18); border-radius:var(--radius);">
+          <span style="width:8px; height:8px; border-radius:50%; background:#4ade80; flex-shrink:0; box-shadow:0 0 6px #4ade80;"></span>
+          <span style="font-size:0.8rem; color:var(--text-muted);">Courier selection is <strong style="color:var(--text-primary);">fully automated</strong> via Shiprocket</span>
+        </div>
+
         <form method="POST" action="{{ url_for('admin.update_order_status', order_id=order.id) }}">
           <div class="form-group">
             <label class="form-label">New Status</label>
@@ -117,15 +208,10 @@
             </select>
           </div>
 
-          {% if available_partners %}
-          <div class="form-group">
-            <label class="form-label">Delivery Partner (set to "ready" to auto-book)</label>
-            <select name="delivery_partner" class="form-input">
-              {% for p in available_partners %}
-              <option value="{{ p }}" {{ 'selected' if order.delivery_partner == p }}>{{ p.title() }}</option>
-              {% endfor %}
-            </select>
-          </div>
+          {% if not order.awb_number %}
+          <p style="font-size:0.78rem; color:var(--text-dim); margin-bottom:1rem; line-height:1.5;">
+            Setting status to <strong style="color:var(--text-muted);">Ready</strong> will automatically create a Shiprocket order, assign the cheapest available courier, and schedule a warehouse pickup.
+          </p>
           {% endif %}
 
           <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">
@@ -137,4 +223,55 @@
   </div>
 
 </div>
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+{% if order.status in ['pending', 'paid'] and not order.awb_number %}
+<script>
+function loadCourierPreview() {
+  const body = document.getElementById('preview-body');
+  body.innerHTML = '<div style="display:flex;align-items:center;gap:0.75rem;color:var(--text-dim);font-size:0.875rem;"><div class="spinner" style="width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div>Fetching live rates…</div>';
+
+  fetch('{{ url_for("admin.courier_preview", order_id=order.id) }}')
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        const etd = data.etd ? `<span style="font-size:0.75rem;color:var(--text-dim);">ETA: ${data.etd}</span>` : '';
+        const others = (data.all_couriers || []).slice(1).map(c =>
+          `<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-top:1px solid var(--border);font-size:0.8rem;color:var(--text-muted);">
+            <span>${c.courier_name}</span><span>₹${c.rate.toFixed(0)}</span>
+          </div>`
+        ).join('');
+
+        body.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+            <div>
+              <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.3rem;">Cheapest Courier</div>
+              <div style="font-weight:700;font-size:1.05rem;color:var(--text-primary);">${data.courier_name}</div>
+              ${etd}
+            </div>
+            <div style="background:rgba(232,255,74,0.1);border:1px solid rgba(232,255,74,0.3);border-radius:8px;padding:0.5rem 1rem;font-weight:700;font-size:1.1rem;color:var(--accent);">
+              ₹${data.rate.toFixed(0)}
+            </div>
+          </div>
+          <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:${others ? '0.5rem' : '0'};">
+            Total shipment weight: ${data.weight.toFixed(2)}kg · Auto-selected on marking "Ready"
+          </div>
+          ${others ? `<div style="margin-top:0.5rem;">${others}</div>` : ''}
+        `;
+      } else {
+        body.innerHTML = `<div style="font-size:0.85rem;color:var(--text-dim);">⚠ ${data.message}</div>`;
+      }
+    })
+    .catch(err => {
+      body.innerHTML = `<div style="font-size:0.85rem;color:var(--text-dim);">Could not fetch courier rates. Shiprocket credentials may not be configured yet.</div>`;
+    });
+}
+
+document.addEventListener('DOMContentLoaded', loadCourierPreview);
+</script>
+{% endif %}
+
 {% endblock %}

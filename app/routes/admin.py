@@ -3,7 +3,7 @@ from datetime import datetime
 
 from flask import (
     Blueprint, render_template, request, redirect,
-    url_for, flash, current_app,
+    url_for, flash, current_app, jsonify,
 )
 from flask_login import login_required, login_user, logout_user, current_user
 from werkzeug.utils import secure_filename
@@ -31,15 +31,6 @@ def save_image(file):
     filename = secure_filename(f"product_{datetime.utcnow().timestamp():.0f}_{file.filename}")
     file.save(os.path.join(upload_folder, filename))
     return f"/static/uploads/products/{filename}"
-
-
-# ─── Settings helper ─────────────────────────────────────────────────────────
-
-class _Settings:
-    """Simple in-memory settings store (replace with DB row if needed)."""
-    delivery_partner = os.getenv("DEFAULT_DELIVERY_PARTNER", "shiprocket")
-
-_settings = _Settings()
 
 
 # ─── Auth ────────────────────────────────────────────────────────────────────
@@ -152,6 +143,7 @@ def add_product():
             price=float(request.form["price"]),
             stock=int(request.form["stock"]),
             category_id=int(request.form["category_id"]),
+            weight=float(request.form.get("weight", 0.5)),
             is_active=True,
         )
         db.session.add(p)
@@ -186,6 +178,7 @@ def edit_product(product_id):
         product.price       = float(request.form["price"])
         product.stock       = int(request.form["stock"])
         product.category_id = int(request.form["category_id"])
+        product.weight      = float(request.form.get("weight", product.weight or 0.5))
 
         files = request.files.getlist("images")
         has_primary = any(img.is_primary for img in product.images)
@@ -269,37 +262,95 @@ def orders():
 @login_required
 def order_detail(order_id):
     order = Order.query.get_or_404(order_id)
+
+    # Fetch live tracking if AWB is present
+    tracking_info = None
+    if order.awb_number:
+        try:
+            from app.delivery import shiprocket
+            tracking_info = shiprocket.get_tracking(order.awb_number)
+        except Exception:
+            tracking_info = {"success": False, "status": "Unavailable", "message": "Could not reach Shiprocket"}
+
     return render_template(
         "admin/order_detail.html",
         order=order,
-        available_partners=["shiprocket", "delhivery", "dtdc"],
+        tracking_info=tracking_info,
     )
+
+
+@admin_bp.route("/orders/<int:order_id>/courier-preview")
+@login_required
+def courier_preview(order_id):
+    """
+    AJAX endpoint — returns estimated courier details for an order before booking.
+    Called live from the order detail page to show admin the cheapest courier
+    available before they mark the order as 'ready'.
+    """
+    order = Order.query.get_or_404(order_id)
+
+    try:
+        from app.delivery import shiprocket
+
+        pickup_pincode   = current_app.config.get("SHIPROCKET_PICKUP_PINCODE", "401303")
+        delivery_pincode = getattr(order.customer, "pincode", None) or "400001"
+
+        total_weight = sum(
+            (item.product.weight if item.product.weight else 0.5) * item.quantity
+            for item in order.items
+        )
+        total_weight = max(total_weight, 0.1)
+
+        result = shiprocket.get_serviceable_couriers(
+            pickup_pincode=pickup_pincode,
+            delivery_pincode=delivery_pincode,
+            weight=total_weight,
+        )
+
+        if result["success"] and result["couriers"]:
+            cheapest = result["couriers"][0]
+            return jsonify({
+                "success":      True,
+                "courier_name": cheapest["courier_name"],
+                "rate":         cheapest["rate"],
+                "etd":          cheapest.get("etd", ""),
+                "weight":       total_weight,
+                "all_couriers": result["couriers"][:5],  # top 5 for display
+            })
+
+        return jsonify({"success": False, "message": result.get("message", "No couriers available")})
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
 
 
 @admin_bp.route("/orders/<int:order_id>/status", methods=["POST"])
 @login_required
 def update_order_status(order_id):
-    order     = Order.query.get_or_404(order_id)
+    order      = Order.query.get_or_404(order_id)
     new_status = request.form.get("status")
-    partner    = request.form.get("delivery_partner", _settings.delivery_partner)
 
+    # ── SMS notification on pickup ────────────────────────────────────────────
     if new_status == "picked_up" and order.status != "picked_up":
         try:
             api_key = current_app.config.get("FAST2SMS_API_KEY")
             if api_key and api_key != "your_fast2sms_api_key_here":
-                import requests
+                import requests as req
                 customer_phone = order.customer.phone
-                msg = f"Good news! Your GenX order #{order.id} has been picked up! Track it here: {order.tracking_id or 'Soon'}"
-                
-                resp = requests.get("https://www.fast2sms.com/dev/bulkV2", params={
+                tracking_link  = order.tracking_url or order.awb_number or "Soon"
+                msg = (
+                    f"Good news! Your GenX order #{order.id} has been picked up! "
+                    f"Track it: {tracking_link}"
+                )
+                resp = req.get("https://www.fast2sms.com/dev/bulkV2", params={
                     "authorization": api_key,
-                    "message": msg,
-                    "language": "english",
-                    "route": "q",
-                    "numbers": customer_phone
+                    "message":       msg,
+                    "language":      "english",
+                    "route":         "q",
+                    "numbers":       customer_phone,
                 })
                 if resp.status_code == 200:
-                    flash("SMS update pinged to customer successfully.", "success")
+                    flash("SMS update sent to customer.", "success")
                 else:
                     flash("SMS failed to send.", "warning")
         except Exception as e:
@@ -307,21 +358,73 @@ def update_order_status(order_id):
 
     order.status = new_status
 
-    # Auto-book pickup when status → "ready"
-    if new_status == "ready" and not order.tracking_id:
+    # ── Auto Shiprocket booking when status → "ready" ─────────────────────────
+    if new_status == "ready" and not order.awb_number:
         try:
-            from app.delivery import get_delivery_partner
-            dp = get_delivery_partner(partner)
-            result = dp.book_pickup(order)
-            if result["success"]:
-                order.tracking_id    = result["tracking_id"]
-                order.shipment_id    = result["shipment_id"]
-                order.delivery_partner = partner
-                flash(f"Pickup booked via {partner.title()}. Tracking: {result['tracking_id']}", "success")
+            from app.delivery import shiprocket
+
+            pickup_pincode   = current_app.config.get("SHIPROCKET_PICKUP_PINCODE", "401303")
+            delivery_pincode = getattr(order.customer, "pincode", None) or "400001"
+
+            total_weight = sum(
+                (item.product.weight if item.product.weight else 0.5) * item.quantity
+                for item in order.items
+            )
+            total_weight = max(total_weight, 0.1)
+
+            # Step 1 — Create order on Shiprocket
+            create_result = shiprocket.create_order(order)
+            if not create_result["success"]:
+                flash(f"⚠ Shiprocket order creation failed: {create_result['message']}", "warning")
+                db.session.commit()
+                return redirect(url_for("admin.order_detail", order_id=order_id))
+
+            sr_order_id    = create_result["shiprocket_order_id"]
+            sr_shipment_id = create_result["shiprocket_shipment_id"]
+
+            # Step 2 — Auto-assign cheapest courier
+            assign_result = shiprocket.assign_cheapest_courier(
+                shiprocket_order_id=sr_order_id,
+                shiprocket_shipment_id=sr_shipment_id,
+                pickup_pincode=pickup_pincode,
+                delivery_pincode=delivery_pincode,
+                weight=total_weight,
+            )
+            if not assign_result["success"]:
+                flash(f"⚠ Courier assignment failed: {assign_result['message']}", "warning")
+                # Still save the Shiprocket order/shipment IDs so admin can retry
+                order.shiprocket_order_id    = sr_order_id
+                order.shiprocket_shipment_id = sr_shipment_id
+                db.session.commit()
+                return redirect(url_for("admin.order_detail", order_id=order_id))
+
+            # Step 3 — Schedule warehouse pickup
+            pickup_result = shiprocket.book_pickup(sr_shipment_id)
+
+            # Save all Shiprocket data back to Order
+            order.shiprocket_order_id    = sr_order_id
+            order.shiprocket_shipment_id = sr_shipment_id
+            order.awb_number             = assign_result["awb_number"]
+            order.courier_name           = assign_result["courier_name"]
+            order.courier_rate           = assign_result["courier_rate"]
+            order.tracking_url           = assign_result["tracking_url"]
+            # Also populate legacy fields for backward compatibility
+            order.tracking_id            = assign_result["awb_number"]
+            order.shipment_id            = sr_shipment_id
+            order.delivery_partner       = "shiprocket"
+
+            flash(
+                f"✅ Courier auto-assigned: {assign_result['courier_name']} — "
+                f"₹{assign_result['courier_rate']:.0f} | AWB: {assign_result['awb_number']}",
+                "success",
+            )
+            if pickup_result["success"]:
+                flash(f"📦 Pickup scheduled: {pickup_result['message']}", "success")
             else:
-                flash(f"Delivery booking failed: {result['message']}", "warning")
+                flash(f"⚠ Pickup scheduling: {pickup_result['message']}", "warning")
+
         except Exception as e:
-            flash(f"Delivery error: {str(e)}", "warning")
+            flash(f"Shiprocket error: {str(e)}", "warning")
 
     db.session.commit()
     flash(f"Order #{order_id} status updated to '{new_status}'.", "success")
@@ -416,12 +519,14 @@ def delete_review(review_id):
 @admin_bp.route("/settings")
 @login_required
 def settings():
-    return render_template("admin/settings.html", settings=_settings)
-
-
-@admin_bp.route("/settings/save", methods=["POST"])
-@login_required
-def save_settings():
-    _settings.delivery_partner = request.form.get("delivery_partner", "shiprocket")
-    flash(f"Delivery partner set to {_settings.delivery_partner.title()}.", "success")
-    return redirect(url_for("admin.settings"))
+    """Show Shiprocket connection status + pickup location config."""
+    from app.delivery import shiprocket
+    connection = shiprocket.check_connection()
+    pickup = {
+        "name":    current_app.config.get("SHIPROCKET_PICKUP_NAME", "—"),
+        "address": current_app.config.get("SHIPROCKET_PICKUP_ADDRESS", "—"),
+        "city":    current_app.config.get("SHIPROCKET_PICKUP_CITY", "—"),
+        "state":   current_app.config.get("SHIPROCKET_PICKUP_STATE", "—"),
+        "pincode": current_app.config.get("SHIPROCKET_PICKUP_PINCODE", "—"),
+    }
+    return render_template("admin/settings.html", connection=connection, pickup=pickup)

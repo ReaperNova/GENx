@@ -20,6 +20,14 @@ class Order(db.Model):
     tracking_id     = db.Column(db.String(200), nullable=True)
     shipment_id     = db.Column(db.String(200), nullable=True)
 
+    # ── Shiprocket automated courier fields ───────────────────────────────────
+    shiprocket_order_id    = db.Column(db.String(100), nullable=True)   # Shiprocket's order ID
+    shiprocket_shipment_id = db.Column(db.String(100), nullable=True)   # Shiprocket's shipment ID
+    awb_number             = db.Column(db.String(100), nullable=True)   # Courier AWB / tracking number
+    courier_name           = db.Column(db.String(100), nullable=True)   # Courier Shiprocket assigned (e.g. "Delhivery")
+    courier_rate           = db.Column(db.Float,       nullable=True)   # Shipment rate Shiprocket charged
+    tracking_url           = db.Column(db.String(500), nullable=True)   # Full tracking URL for customer
+
     items = db.relationship("OrderItem", backref="order",
                             cascade="all, delete-orphan", lazy="select")
 

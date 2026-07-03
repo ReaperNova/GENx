@@ -12,6 +12,8 @@ class Product(db.Model):
     price       = db.Column(db.Float, nullable=False)
     stock       = db.Column(db.Integer, default=0)
     is_active   = db.Column(db.Boolean, default=True)
+    weight      = db.Column(db.Float, default=0.5)  # kg — used by Shiprocket for rate calculation
+
 
     images      = db.relationship("ProductImage", backref="product",
                                   cascade="all, delete-orphan", lazy="select")

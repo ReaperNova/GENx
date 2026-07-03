@@ -1,19 +1,15 @@
 """
-Delivery partner factory.
+Delivery gateway — Shiprocket only.
+
+Shiprocket aggregates 25+ courier partners and automatically selects
+the cheapest available courier per order. delhivery.py and dtdc.py
+have been deprecated (kept as stubs with explanatory comments).
+
 Usage:
-    from app.delivery import get_delivery_partner
-    partner = get_delivery_partner("shiprocket")
-    result = partner.book_pickup(order)
+    from app.delivery import shiprocket
+    result = shiprocket.create_order(order)
 """
 
-import importlib
+from app.delivery import shiprocket  # noqa: F401 — re-export for convenience
 
-
-def get_delivery_partner(name: str):
-    """Return the delivery module for the given partner name."""
-    name = (name or "shiprocket").lower().strip()
-    try:
-        module = importlib.import_module(f"app.delivery.{name}")
-        return module
-    except ModuleNotFoundError:
-        raise ValueError(f"Unknown delivery partner: {name}")
+__all__ = ["shiprocket"]

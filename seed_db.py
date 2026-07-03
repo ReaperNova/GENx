@@ -25,46 +25,46 @@ CATEGORIES = [
 ]
 
 PRODUCTS = [
-    # (name, desc, price, stock, category_slug, image_url)
+    # (name, desc, price, stock, category_slug, image_url, weight_kg)
     ("Drop Shoulder Hoodie",
      "Heavyweight 380gsm fleece. Oversized silhouette, kangaroo pocket. Built for the streets.",
      1499, 40, "hoodies",
-     "/static/images/hoodie1.jpg"),
+     "/static/images/hoodie1.jpg", 0.6),
 
     ("Acid Wash Hoodie",
      "Vintage acid wash treatment, unique every piece. French terry lining.",
      1799, 25, "hoodies",
-     "/static/images/hoodie2.jpg"),
+     "/static/images/hoodie2.jpg", 0.6),
 
     ("Graphic Tee — Logo Drop",
      "100% organic cotton. Screen-printed logo. Oversized fit.",
      699,  80, "tees",
-     "/static/images/tee1.jpg"),
+     "/static/images/tee1.jpg", 0.3),
 
     ("Blank Tee — Urban Fit",
      "Boxy cut, 220gsm combed cotton. The perfect blank canvas.",
      599,  100, "tees",
-     "/static/images/tee2.jpg"),
+     "/static/images/tee2.jpg", 0.3),
 
     ("Cargo Pants — Slate",
      "6-pocket cargo silhouette. Relaxed taper. Ripstop fabric.",
      1999, 30, "pants",
-     "/static/images/pants1.jpg"),
+     "/static/images/pants1.jpg", 0.7),
 
     ("Track Pants — OG",
      "Tricot track pants with side stripe. Elastic waist + drawcord.",
      1299, 45, "pants",
-     "/static/images/pants2.jpg"),
+     "/static/images/pants2.jpg", 0.5),
 
     ("5-Panel Cap — Black",
      "Structured 5-panel with embroidered logo. One size fits all.",
      499,  60, "accessories",
-     "/static/images/cap.jpg"),
+     "/static/images/cap.jpg", 0.2),
 
     ("Tote Bag — Street Edition",
      "Heavy canvas tote. Screen-printed. Holds your whole fit.",
      349,  75, "accessories",
-     "/static/images/tote.jpg"),
+     "/static/images/tote.jpg", 0.4),
 ]
 
 COUPONS = [
@@ -91,7 +91,7 @@ with app.app_context():
             cat_map[slug] = existing.id
 
     # Products
-    for name, desc, price, stock, cat_slug, img_url in PRODUCTS:
+    for name, desc, price, stock, cat_slug, img_url, weight_kg in PRODUCTS:
         if not Product.query.filter_by(name=name).first():
             p = Product(
                 name=name,
@@ -100,11 +100,12 @@ with app.app_context():
                 stock=stock,
                 category_id=cat_map[cat_slug],
                 is_active=True,
+                weight=weight_kg,
             )
             db.session.add(p)
             db.session.flush()
             db.session.add(ProductImage(product_id=p.id, image_url=img_url, is_primary=True))
-            print(f"  ✓ Product: {name}")
+            print(f"  ✓ Product: {name} ({weight_kg}kg)")
 
     # Coupons
     for code, dtype, value, min_order, max_uses in COUPONS:

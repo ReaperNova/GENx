@@ -1,7 +1,7 @@
 import os
 from flask import Flask, render_template
 from config import config, BRAND_NAME, BRAND_TAGLINE, BRAND_CITY
-from app.extensions import db, login_manager
+from app.extensions import db, login_manager, migrate
 
 
 def create_app(config_name: str = None):
@@ -13,6 +13,7 @@ def create_app(config_name: str = None):
 
     # Init extensions
     db.init_app(app)
+    migrate.init_app(app, db)
     login_manager.init_app(app)
 
     # ──────────────────────────────────────
