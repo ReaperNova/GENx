@@ -1,0 +1,132 @@
+{% extends "admin/layout.html" %}
+{% block title %}{{ 'Edit' if product else 'Add' }} Product — {{ BRAND_NAME }} Admin{% endblock %}
+
+{% block content %}
+<div class="admin-topbar">
+  <div>
+    <a href="{{ url_for('admin.products') }}" style="color:var(--text-muted); font-size:0.85rem; text-decoration:none;">← Products</a>
+    <h1 class="admin-page-title" style="margin-top:0.25rem;">{{ 'EDIT PRODUCT' if product else 'ADD PRODUCT' }}</h1>
+  </div>
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 340px; gap:2rem; align-items:start;">
+
+  <form method="POST" enctype="multipart/form-data"
+    action="{{ url_for('admin.edit_product', product_id=product.id) if product else url_for('admin.add_product') }}">
+
+    <!-- Basic info -->
+    <div class="admin-card" style="margin-bottom:1.5rem;">
+      <div class="admin-card-header">
+        <span style="font-family:var(--font-ui); font-weight:700; font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em;">Product Info</span>
+      </div>
+      <div style="padding:1.5rem; display:flex; flex-direction:column; gap:1rem;">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Product Name *</label>
+          <input type="text" name="name" class="form-input" required value="{{ product.name if product else '' }}" placeholder="e.g. Oversized Drop Shoulder Hoodie">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Description</label>
+          <textarea name="description" class="form-input" rows="4" placeholder="Describe the product…">{{ product.description if product else '' }}</textarea>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem;">
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Price (₹) *</label>
+            <input type="number" name="price" class="form-input" required step="0.01" value="{{ product.price if product else '' }}" placeholder="999">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Stock *</label>
+            <input type="number" name="stock" class="form-input" required value="{{ product.stock if product else '' }}" placeholder="50">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Category *</label>
+            <select name="category_id" class="form-input" required>
+              {% for cat in categories %}
+              <option value="{{ cat.id }}" {{ 'selected' if product and product.category_id == cat.id }}>{{ cat.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Images -->
+    <div class="admin-card" style="margin-bottom:1.5rem;">
+      <div class="admin-card-header">
+        <span style="font-family:var(--font-ui); font-weight:700; font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em;">Product Images</span>
+      </div>
+      <div style="padding:1.5rem;">
+        {% if product and product.images %}
+        <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1.25rem;">
+          {% for img in product.images %}
+          <div style="position:relative; border-radius:var(--radius); overflow:hidden; border:2px solid {{ 'var(--accent)' if img.is_primary else 'var(--border)' }};">
+            <img src="{{ img.image_url }}" style="width:88px; height:100px; object-fit:cover; display:block;">
+            <div style="position:absolute; inset:0; background:rgba(0,0,0,0.5); display:flex; flex-direction:column; gap:0.25rem; align-items:center; justify-content:center; opacity:0; transition:opacity 0.2s;" class="img-overlay">
+              {% if not img.is_primary %}
+              <form method="POST" action="{{ url_for('admin.set_primary_image', image_id=img.id) }}">
+                <button type="submit" class="btn btn-sm" style="padding:0.2rem 0.5rem; font-size:0.65rem; background:var(--accent); color:#000; border:none;">Primary</button>
+              </form>
+              {% else %}
+              <span class="tag" style="font-size:0.6rem;">Primary</span>
+              {% endif %}
+              <form method="POST" action="{{ url_for('admin.delete_image', image_id=img.id) }}" onsubmit="return confirm('Delete this image?')">
+                <button type="submit" class="btn btn-sm" style="padding:0.2rem 0.5rem; font-size:0.65rem; background:var(--error); color:#fff; border:none;">Delete</button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <style>.img-overlay { opacity: 0; } div:hover > .img-overlay { opacity: 1; }</style>
+        {% endif %}
+
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Upload New Images (multiple allowed)</label>
+          <input type="file" name="images" multiple accept="image/*" class="form-input" style="padding:0.6rem;">
+          <p style="font-size:0.75rem; color:var(--text-dim); margin-top:0.4rem;">
+            First image becomes primary if no images exist. Max 16 MB per file. PNG, JPG, WEBP allowed.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-lg">
+      {{ 'Save Changes' if product else 'Create Product' }}
+    </button>
+  </form>
+
+  <!-- Right column: existing image preview / quick stats -->
+  <div>
+    {% if product %}
+    <div class="admin-card">
+      <div class="admin-card-header">
+        <span style="font-family:var(--font-ui); font-weight:700; font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em;">Product Stats</span>
+      </div>
+      <div style="padding:1.5rem; display:flex; flex-direction:column; gap:1rem;">
+        <div>
+          <div style="font-size:0.7rem; color:var(--text-dim); letter-spacing:0.15em; text-transform:uppercase;">Total Orders</div>
+          <div style="font-family:var(--font-display); font-size:2rem; color:var(--accent);">{{ product.order_items.count() }}</div>
+        </div>
+        <div>
+          <div style="font-size:0.7rem; color:var(--text-dim); letter-spacing:0.15em; text-transform:uppercase;">Avg Rating</div>
+          <div style="font-family:var(--font-display); font-size:2rem; color:var(--accent);">{{ "%.1f"|format(product.avg_rating) }} ⭐</div>
+        </div>
+        <div>
+          <div style="font-size:0.7rem; color:var(--text-dim); letter-spacing:0.15em; text-transform:uppercase;">Reviews</div>
+          <div style="font-family:var(--font-display); font-size:2rem; color:var(--accent);">{{ product.review_count }}</div>
+        </div>
+        <div style="padding-top:1rem; border-top:1px solid var(--border);">
+          <label class="form-label" style="display:flex; align-items:center; gap:0.75rem; cursor:pointer;">
+            <span>Active (visible in shop)</span>
+          </label>
+          <form method="POST" action="{{ url_for('admin.toggle_product', product_id=product.id) }}" style="margin-top:0.5rem;">
+            <button type="submit" class="btn {{ 'btn-outline' if product.is_active else 'btn-primary' }} btn-sm">
+              {{ 'Hide from Shop' if product.is_active else 'Make Active' }}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

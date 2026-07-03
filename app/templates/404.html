@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}404 — Not Found · {{ BRAND_NAME }}{% endblock %}
+{% block content %}
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; text-align:center; padding:2rem;">
+  <div>
+    <div style="font-family:var(--font-display); font-size:clamp(8rem,20vw,18rem); line-height:0.9; color:var(--border); letter-spacing:-0.04em;">404</div>
+    <h1 style="font-family:var(--font-display); font-size:clamp(2rem,5vw,4rem); margin-top:1rem;">PAGE NOT FOUND</h1>
+    <p style="color:var(--text-muted); margin:1rem 0 2rem;">This drop doesn't exist. Maybe it sold out.</p>
+    <a href="/" class="btn btn-primary" data-transition>Back to Home</a>
+  </div>
+</div>
+{% endblock %}

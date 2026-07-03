@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Admin — {{ BRAND_NAME }}{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body style="background:var(--bg-primary); color:var(--text-primary);">
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div id="admin-flash" style="position:fixed; top:1rem; right:1rem; z-index:9999; display:flex; flex-direction:column; gap:0.5rem;">
+  {% for cat, msg in messages %}
+  <div class="toast {{ cat }}" style="min-width:280px;" onclick="this.remove()">
+    <span>{{ '✓' if cat == 'success' else ('⚠' if cat == 'warning' else '✕') }}</span>
+    <span>{{ msg }}</span>
+  </div>
+  {% endfor %}
+</div>
+<script>setTimeout(() => { const f = document.getElementById('admin-flash'); if(f) f.remove(); }, 4000);</script>
+{% endif %}
+{% endwith %}
+
+<!-- Sidebar -->
+<aside class="admin-sidebar">
+  <div class="admin-logo">
+    <span>{{ BRAND_NAME }}</span>
+    <span style="font-size:0.65rem; background:rgba(232,255,74,0.15); color:var(--accent); padding:0.15rem 0.5rem; border-radius:4px; letter-spacing:0.1em; font-family:var(--font-ui);">ADMIN</span>
+  </div>
+
+  <div class="admin-nav-section">
+    <div class="admin-nav-label">Overview</div>
+    <a href="{{ url_for('admin.dashboard') }}" class="admin-nav-link {% if request.endpoint == 'admin.dashboard' %}active{% endif %}">
+      <span>📊</span> Dashboard
+    </a>
+  </div>
+
+  <div class="admin-nav-section">
+    <div class="admin-nav-label">Catalogue</div>
+    <a href="{{ url_for('admin.products') }}" class="admin-nav-link {% if 'admin.product' in request.endpoint %}active{% endif %}">
+      <span>👕</span> Products
+    </a>
+    <a href="{{ url_for('admin.categories') }}" class="admin-nav-link {% if 'admin.categor' in request.endpoint %}active{% endif %}">
+      <span>🗂️</span> Categories
+    </a>
+  </div>
+
+  <div class="admin-nav-section">
+    <div class="admin-nav-label">Commerce</div>
+    <a href="{{ url_for('admin.orders') }}" class="admin-nav-link {% if 'admin.order' in request.endpoint %}active{% endif %}">
+      <span>📦</span> Orders
+    </a>
+    <a href="{{ url_for('admin.coupons') }}" class="admin-nav-link {% if 'admin.coupon' in request.endpoint %}active{% endif %}">
+      <span>🎟️</span> Coupons
+    </a>
+    <a href="{{ url_for('admin.reviews_list') }}" class="admin-nav-link {% if 'admin.review' in request.endpoint %}active{% endif %}">
+      <span>⭐</span> Reviews
+    </a>
+  </div>
+
+  <div class="admin-nav-section">
+    <div class="admin-nav-label">System</div>
+    <a href="{{ url_for('admin.settings') }}" class="admin-nav-link {% if 'admin.settings' in request.endpoint %}active{% endif %}">
+      <span>⚙️</span> Settings
+    </a>
+    <a href="{{ url_for('admin.logout') }}" class="admin-nav-link" style="color:var(--error);">
+      <span>🚪</span> Logout
+    </a>
+  </div>
+
+  <div style="position:absolute; bottom:1.5rem; left:1rem; right:1rem; padding:0.75rem; background:var(--bg-hover); border-radius:var(--radius); border:1px solid var(--border);">
+    <div style="font-size:0.7rem; color:var(--text-dim);">Logged in as</div>
+    <div style="font-size:0.85rem; font-weight:600; color:var(--text-primary); margin-top:0.15rem;">{{ current_user.email }}</div>
+  </div>
+</aside>
+
+<!-- Main content -->
+<div class="admin-content">
+  {% block content %}{% endblock %}
+</div>
+
+<div id="toast-container"></div>
+<script>
+  window.showToast = function(msg, type='success'){
+    const c = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.innerHTML = `<span>${type==='success'?'✓':'✕'}</span><span>${msg}</span>`;
+    c.appendChild(t);
+    setTimeout(()=>{ t.style.animation='slideOutRight 0.3s ease forwards'; setTimeout(()=>t.remove(),300); }, 3500);
+  };
+</script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

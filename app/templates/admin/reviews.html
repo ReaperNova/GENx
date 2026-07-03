@@ -1,0 +1,36 @@
+{% extends "admin/layout.html" %}
+{% block title %}Reviews — {{ BRAND_NAME }} Admin{% endblock %}
+
+{% block content %}
+<div class="admin-topbar">
+  <h1 class="admin-page-title">REVIEWS</h1>
+</div>
+<div class="admin-card">
+  <div class="table-responsive"><table class="data-table">
+    <thead><tr><th>Product</th><th>Customer</th><th>Rating</th><th>Review</th><th>Date</th><th></th></tr></thead>
+    <tbody>
+      {% for r in reviews %}
+      <tr>
+        <td style="color:var(--text-primary); font-weight:600;">{{ r.product.name }}</td>
+        <td>{{ r.customer.name }}</td>
+        <td>
+          <span style="color:#fbbf24;">{{ '★' * r.star_rating }}{{ '☆' * (5 - r.star_rating) }}</span>
+        </td>
+        <td style="max-width:240px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text-muted);">
+          {{ r.review_text or '—' }}
+        </td>
+        <td style="font-size:0.8rem; color:var(--text-dim);">{{ r.created_at.strftime('%d %b %Y') }}</td>
+        <td>
+          <form method="POST" action="{{ url_for('admin.delete_review', review_id=r.id) }}"
+                onsubmit="return confirm('Delete this review?')">
+            <button type="submit" class="btn btn-sm" style="background:rgba(239,68,68,0.1); color:var(--error); border:1px solid rgba(239,68,68,0.2);">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" style="text-align:center; padding:3rem; color:var(--text-dim);">No reviews yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

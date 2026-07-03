@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}{{ BRAND_NAME }} — {{ BRAND_TAGLINE }}{% endblock %}
+
+{% block content %}
+
+<!-- ══════════════════════════════════════
+     HERO SECTION
+══════════════════════════════════════ -->
+<section class="hero">
+  <div class="hero-bg-grid"></div>
+
+  <!-- Floating accent blobs -->
+  <div style="position:absolute; width:600px; height:600px; background:radial-gradient(circle, rgba(232,255,74,0.07) 0%, transparent 70%); top:-100px; right:-200px; pointer-events:none;"></div>
+  <div style="position:absolute; width:400px; height:400px; background:radial-gradient(circle, rgba(232,255,74,0.05) 0%, transparent 70%); bottom:-100px; left:-100px; pointer-events:none;"></div>
+
+  <div style="position:relative; z-index:1; text-align:center; padding: 0 1rem;">
+    <p class="hero-subtitle" style="opacity:0;">{{ BRAND_CITY }} — Est. 2024</p>
+
+    <h1 class="hero-title">
+      <span>DROP</span>&nbsp;<span class="accent-word">THE</span><br>
+      <span>ORDINARY</span>
+    </h1>
+
+    <p class="hero-subtitle" style="opacity:0; margin-top:1.5rem;">
+      Streetwear for those who dare to stand out
+    </p>
+
+    <div class="hero-cta" style="justify-content:center; opacity:0;">
+      <a href="/shop" class="btn btn-primary btn-lg" data-transition>
+        Shop Now
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="/shop?category=new-arrivals" class="btn btn-outline btn-lg" data-transition>New Arrivals</a>
+    </div>
+
+    <!-- Scroll indicator -->
+    <div style="position:absolute; bottom:2.5rem; left:50%; transform:translateX(-50%); opacity:0.4; display:flex; flex-direction:column; align-items:center; gap:0.5rem;">
+      <span style="font-size:0.65rem; letter-spacing:0.3em; text-transform:uppercase; font-family:var(--font-ui);">Scroll</span>
+      <div style="width:1px; height:48px; background:linear-gradient(to bottom, var(--text-primary), transparent);"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+     TICKER STRIP
+══════════════════════════════════════ -->
+<div class="ticker-wrap">
+  <div class="ticker">
+    {% set ticker_items = ['Free Delivery on Orders Above ₹999', 'New Drops Every Friday', 'Virar ke Apne Brand', '100% Original Streetwear', 'Wear the Vibe'] %}
+    {% for item in ticker_items * 4 %}
+      <span class="ticker-item">{{ item }}</span>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     FEATURED CATEGORIES
+══════════════════════════════════════ -->
+<section class="section">
+  <div class="container">
+    <div class="fade-up">
+      <div class="section-label">Collections</div>
+      <h2 class="section-title">SHOP BY<br><span style="color:var(--accent);">VIBE</span></h2>
+    </div>
+
+    <div class="category-grid fade-up">
+      {% for cat in categories %}
+      <a href="/shop?category={{ cat.slug }}" class="category-card" data-transition>
+        <img
+          src="{{ cat.cover_image if cat.cover_image else '/static/images/placeholder.jpg' }}"
+          alt="{{ cat.name }}"
+          loading="lazy"
+        >
+        <div class="category-card-overlay">
+          <div class="category-name">{{ cat.name.upper() }}</div>
+          <div class="category-count">{{ cat.products.filter_by(is_active=True).count() }} Items</div>
+        </div>
+      </a>
+      {% else %}
+      <!-- Placeholder categories if none seeded yet -->
+      {% for name, slug in [('Hoodies','hoodies'),('Tees','tees'),('Pants','pants'),('Accessories','accessories')] %}
+      <a href="/shop?category={{ slug }}" class="category-card" data-transition>
+        <img src="/static/images/placeholder.jpg" alt="{{ name }}" loading="lazy">
+        <div class="category-card-overlay">
+          <div class="category-name">{{ name.upper() }}</div>
+          <div class="category-count">Coming Soon</div>
+        </div>
+      </a>
+      {% endfor %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══════════════════════════════════════
+     NEW ARRIVALS
+══════════════════════════════════════ -->
+<section class="section">
+  <div class="container">
+    <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:3rem;" class="fade-up">
+      <div>
+        <div class="section-label">Fresh Drops</div>
+        <h2 class="section-title" style="margin-bottom:0;">NEW<br><span style="color:var(--accent);">ARRIVALS</span></h2>
+      </div>
+      <a href="/shop" class="btn btn-outline" data-transition>View All</a>
+    </div>
+
+    <div class="products-grid product-card-group">
+      {% for product in new_arrivals %}
+      <a href="/product/{{ product.id }}" class="product-card" data-transition style="text-decoration:none;">
+        <div class="product-card-img">
+          <img
+            src="{{ product.primary_image }}"
+            alt="{{ product.name }}"
+            loading="lazy"
+          >
+          <div class="product-card-overlay">
+            <button
+              class="btn btn-primary btn-sm"
+              onclick="event.preventDefault(); addToCart({
+                id: {{ product.id }},
+                name: '{{ product.name | replace("'","\'") }}',
+                price: {{ product.price }},
+                image: '{{ product.primary_image }}',
+                size: null,
+                quantity: 1
+              })"
+            >
+              + Quick Add
+            </button>
+          </div>
+          {% if loop.index <= 3 %}
+          <div class="tag" style="position:absolute; top:0.75rem; left:0.75rem;">New</div>
+          {% endif %}
+        </div>
+        <div class="product-card-body">
+          <div class="product-category">{{ product.category.name }}</div>
+          <div class="product-name">{{ product.name }}</div>
+          {% if product.review_count > 0 %}
+          <div class="product-rating">
+            <div class="stars">
+              {% for i in range(1, 6) %}
+              <span class="star {% if i <= product.avg_rating %}filled{% endif %}">★</span>
+              {% endfor %}
+            </div>
+            <span class="rating-count">({{ product.review_count }})</span>
+          </div>
+          {% endif %}
+          <div class="product-price">₹{{ "{:,.0f}".format(product.price) }}</div>
+        </div>
+      </a>
+      {% else %}
+      <div style="grid-column:1/-1; text-align:center; padding:4rem; color:var(--text-dim);">
+        <p style="font-family:var(--font-display); font-size:2rem;">COMING SOON</p>
+        <p style="margin-top:0.5rem; font-size:0.9rem;">First drop dropping soon. Stay ready.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+     BRAND STORY STRIP
+══════════════════════════════════════ -->
+<section style="background:var(--accent); padding:5rem 0; overflow:hidden; position:relative;">
+  <div class="container" style="position:relative; z-index:1;">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:4rem; align-items:center;">
+      <div class="fade-left">
+        <div style="font-family:var(--font-display); font-size:clamp(3rem,7vw,6rem); line-height:0.95; color:#000; letter-spacing:0.02em;">
+          BORN IN<br>VIRAR.<br>BUILT FOR<br>THE STREETS.
+        </div>
+      </div>
+      <div class="fade-right">
+        <p style="font-family:var(--font-ui); font-size:1.1rem; color:#111; line-height:1.8; max-width:420px;">
+          {{ BRAND_NAME }} is more than clothing. It's a movement from the streets of {{ BRAND_CITY }}.
+          We make gear for those who hustle, those who vibe, those who refuse to be basic.
+        </p>
+        <a href="/shop" class="btn" style="background:#000; color:var(--accent); margin-top:2rem;" data-transition>
+          Shop the Drop
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════
+     FEATURES / USP ROW
+══════════════════════════════════════ -->
+<section class="section-sm" style="border-top:1px solid var(--border);">
+  <div class="container">
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:2rem;">
+      {% for icon, title, desc in [
+        ('🚚', 'Fast Delivery', 'Same-day dispatch for orders placed before 2PM'),
+        ('♻️', 'Sustainable', 'Ethically sourced and made to last'),
+        ('📦', 'Easy Returns', '7-day no-questions returns'),
+        ('🔒', 'Secure Payments', '100% safe via Razorpay'),
+      ] %}
+      <div class="fade-up" style="text-align:center; padding:1.5rem;">
+        <div style="font-size:2rem; margin-bottom:0.75rem;">{{ icon }}</div>
+        <div style="font-family:var(--font-ui); font-weight:700; font-size:0.95rem; margin-bottom:0.25rem;">{{ title }}</div>
+        <div style="font-size:0.8rem; color:var(--text-dim);">{{ desc }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+{% endblock %}

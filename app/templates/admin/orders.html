@@ -1,0 +1,51 @@
+{% extends "admin/layout.html" %}
+{% block title %}Orders — {{ BRAND_NAME }} Admin{% endblock %}
+
+{% block content %}
+<div class="admin-topbar">
+  <h1 class="admin-page-title">ORDERS</h1>
+  <div style="display:flex; gap:0.5rem;">
+    {% for s in ['all','pending','paid','ready','picked_up','delivered','cancelled'] %}
+    <a href="{{ url_for('admin.orders', status=s) }}"
+       class="btn btn-sm {% if status_filter == s %}btn-primary{% else %}btn-dark{% endif %}">
+      {{ s.replace('_',' ').title() if s != 'all' else 'All' }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="admin-card">
+  <div class="table-responsive"><table class="data-table">
+    <thead>
+      <tr><th>#</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+      {% for order in orders %}
+      <tr>
+        <td style="color:var(--text-primary); font-weight:600;">#{{ order.id }}</td>
+        <td>
+          <div style="font-weight:600; color:var(--text-primary);">{{ order.customer.name }}</div>
+          <div style="font-size:0.75rem; color:var(--text-dim);">{{ order.customer.email }}</div>
+        </td>
+        <td style="color:var(--text-muted);">{{ order.items|length }} item{{ 's' if order.items|length != 1 }}</td>
+        <td style="color:var(--accent); font-weight:700;">₹{{ "{:,.0f}".format(order.total_amount) }}</td>
+        <td>
+          {% if order.payment_id %}
+          <span style="font-size:0.75rem; color:var(--success);">✓ Paid</span>
+          {% else %}
+          <span style="font-size:0.75rem; color:var(--warning);">⏳ Pending</span>
+          {% endif %}
+        </td>
+        <td><span class="badge badge-{{ order.status }}">{{ order.status.replace('_',' ').title() }}</span></td>
+        <td style="font-size:0.8rem; color:var(--text-dim);">{{ order.ordered_at.strftime('%d %b, %H:%M') }}</td>
+        <td>
+          <a href="{{ url_for('admin.order_detail', order_id=order.id) }}" class="btn btn-dark btn-sm">Manage</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" style="text-align:center; padding:3rem; color:var(--text-dim);">No orders found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

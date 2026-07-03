@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Order Confirmed — {{ BRAND_NAME }}{% endblock %}
+{% block footer %}{% endblock %}
+
+{% block content %}
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:2rem; background:var(--bg-primary); position:relative; overflow:hidden;">
+
+  <!-- Background glow -->
+  <div style="position:absolute; width:600px; height:600px; background:radial-gradient(circle, rgba(34,197,94,0.08) 0%, transparent 70%); top:50%; left:50%; transform:translate(-50%,-50%); pointer-events:none;"></div>
+
+  <div style="max-width:600px; width:100%; text-align:center; position:relative; z-index:1;">
+
+    <!-- Success icon -->
+    <div id="success-circle" style="width:100px; height:100px; background:rgba(34,197,94,0.1); border:2px solid var(--success); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 2rem; font-size:2.5rem;">
+      ✓
+    </div>
+
+    <div class="tag" style="margin-bottom:1rem; background:rgba(34,197,94,0.1); color:var(--success); border-color:rgba(34,197,94,0.2);">
+      Payment Successful
+    </div>
+
+    <h1 style="font-family:var(--font-display); font-size:clamp(2.5rem,6vw,5rem); line-height:1; letter-spacing:0.02em; margin-bottom:0.75rem;">
+      ORDER<br><span style="color:var(--accent);">CONFIRMED!</span>
+    </h1>
+
+    <p style="color:var(--text-muted); font-size:0.95rem; max-width:420px; margin:0 auto 2.5rem; line-height:1.7;">
+      Your order <strong style="color:var(--text-primary);">#{{ order.id }}</strong> is confirmed and being packed with love from Virar.
+    </p>
+
+    <!-- Order summary card -->
+    <div class="order-summary-box" style="text-align:left; margin-bottom:2rem;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--border);">
+        <div>
+          <div style="font-size:0.7rem; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; color:var(--text-dim); margin-bottom:0.25rem;">Order ID</div>
+          <div style="font-family:var(--font-ui); font-weight:600;">{{ order.id }}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:0.7rem; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; color:var(--text-dim); margin-bottom:0.25rem;">Order Date</div>
+          <div style="font-family:var(--font-ui); font-weight:600;">{{ order.ordered_at.strftime('%d %b %Y') }}</div>
+        </div>
+      </div>
+
+      <!-- Items -->
+      {% for item in order.items %}
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0;">
+        <div>
+          <div style="font-size:0.875rem; font-weight:600;">{{ item.product.name }}</div>
+          <div style="font-size:0.75rem; color:var(--text-muted);">Size: {{ item.size or 'Free' }} · Qty: {{ item.quantity }}</div>
+        </div>
+        <div style="font-weight:700; color:var(--accent);">₹{{ "{:,.0f}".format(item.price_at_purchase * item.quantity) }}</div>
+      </div>
+      {% endfor %}
+
+      <div style="height:1px; background:var(--border); margin:1rem 0;"></div>
+
+      {% if order.discount_amount > 0 %}
+      <div class="summary-row discount">
+        <span>Coupon Discount</span>
+        <span>- ₹{{ "{:,.0f}".format(order.discount_amount) }}</span>
+      </div>
+      {% endif %}
+
+      <div class="summary-row total" style="border:none;">
+        <span>Total Paid</span>
+        <span style="color:var(--accent); font-family:var(--font-display); font-size:1.75rem;">
+          ₹{{ "{:,.0f}".format(order.total_amount) }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Delivery info -->
+    <div style="padding:1rem 1.5rem; background:rgba(232,255,74,0.05); border:1px solid rgba(232,255,74,0.15); border-radius:var(--radius); margin-bottom:2rem; text-align:left;">
+      <div style="font-size:0.8rem; color:var(--accent); font-weight:700; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:0.5rem;">📦 Delivery Info</div>
+      <p style="font-size:0.85rem; color:var(--text-muted); line-height:1.6;">
+        Estimated delivery in <strong style="color:var(--text-primary);">3–5 business days</strong>.
+        You'll receive an SMS with tracking details once your order is picked up.
+      </p>
+    </div>
+
+    <!-- CTAs -->
+    <div style="display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;">
+      <a href="/shop" class="btn btn-primary" data-transition>Continue Shopping</a>
+      <a href="/" class="btn btn-outline" data-transition>Back to Home</a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Success circle pop-in
+  gsap.fromTo("#success-circle",
+    { scale: 0, opacity: 0 },
+    { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.7)", delay: 0.3 }
+  );
+  // Content reveal
+  gsap.fromTo("h1, p, .order-summary-box, .btn",
+    { y: 30, opacity: 0 },
+    { y: 0, opacity: 1, duration: 0.6, stagger: 0.1, ease: "power3.out", delay: 0.5 }
+  );
+</script>
+{% endblock %}

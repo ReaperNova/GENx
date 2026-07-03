@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Test Panel — {{ BRAND_NAME }}{% endblock %}
+{% block footer %}{% endblock %}
+
+{% block content %}
+<div style="min-height:100vh; padding-top:5rem; padding-bottom:4rem; background:var(--bg-primary);">
+  <div class="container">
+
+    <!-- Header -->
+    <div style="margin-bottom:3rem; padding:1.5rem; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-radius:var(--radius-lg);">
+      <div style="display:flex; gap:0.75rem; align-items:center; margin-bottom:0.5rem;">
+        <span style="font-size:1.25rem;">⚠️</span>
+        <h1 style="font-family:var(--font-display); font-size:2rem; color:var(--warning); letter-spacing:0.05em;">TEST PANEL</h1>
+      </div>
+      <p style="font-size:0.85rem; color:var(--text-muted);">
+        Hidden development tool. Not linked from the public site. Use this to simulate full order flows without real money or deliveries.
+      </p>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start;">
+
+      <!-- Simulate Order -->
+      <div class="admin-card">
+        <div class="admin-card-header">
+          <span style="font-family:var(--font-ui); font-weight:700; font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em;">🛒 Simulate Order</span>
+        </div>
+        <div style="padding:1.5rem;">
+          <div class="form-group">
+            <label class="form-label">Product</label>
+            <select id="sim-product" class="form-input">
+              {% for p in products %}
+              <option value="{{ p.id }}">{{ p.name }} — ₹{{ "{:,.0f}".format(p.price) }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Size</label>
+              <select id="sim-size" class="form-input">
+                {% for s in ['S','M','L','XL','XXL'] %}<option>{{ s }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Quantity</label>
+              <input type="number" id="sim-qty" class="form-input" value="1" min="1" max="5">
+            </div>
+          </div>
+          <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="simulateOrder()">
+            Create Simulated Paid Order
+          </button>
+          <div id="sim-result" style="margin-top:1rem; font-size:0.85rem;"></div>
+        </div>
+      </div>
+
+      <!-- Available Coupons -->
+      <div class="admin-card">
+        <div class="admin-card-header">
+          <span style="font-family:var(--font-ui); font-weight:700; font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em;">🎟️ Test Coupons</span>
+        </div>
+        <div style="padding:1.5rem;">
+          {% for c in coupons %}
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem; background:var(--bg-secondary); border-radius:var(--radius); margin-bottom:0.5rem; border:1px solid var(--border);">
+            <div>
+              <div style="font-family:monospace; font-weight:700; color:var(--accent); font-size:1rem;">{{ c.code }}</div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">
+                {{ ('₹' ~ c.discount_value|int) if c.discount_type == 'flat' else (c.discount_value|int ~ '% off') }}
+                · Min ₹{{ c.min_order_amount|int }}
+                · {{ c.used_count }}/{{ c.max_uses }} used
+              </div>
+            </div>
+            <button class="btn btn-dark btn-sm" onclick="navigator.clipboard.writeText('{{ c.code }}'); showToast('Copied!', 'success')">Copy</button>
+          </div>
+          {% else %}
+          <p style="color:var(--text-dim); font-size:0.85rem;">No active coupons. Create them in the <a href="/admin/coupons" style="color:var(--accent);">admin panel</a>.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Recent Orders + Status Stepper -->
+      <div class="admin-card" style="grid-column:1/-1;">
+        <div class="admin-card-header">
+          <span style="font-family:var(--font-ui); font-weight:700; font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em;">📦 Recent Orders — Advance Status</span>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>#</th><th>Customer</th><th>Total</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody id="orders-tbody">
+            {% for order in orders %}
+            <tr id="order-row-{{ order.id }}">
+              <td style="color:var(--text-primary); font-weight:600;">#{{ order.id }}</td>
+              <td>{{ order.customer.name }}</td>
+              <td style="color:var(--accent);">₹{{ "{:,.0f}".format(order.total_amount) }}</td>
+              <td><span class="badge badge-{{ order.status }}" id="status-{{ order.id }}">{{ order.status.replace('_',' ').title() }}</span></td>
+              <td>
+                <button class="btn btn-dark btn-sm" onclick="advanceStatus({{ order.id }})">Advance →</button>
+                <a href="/orders/confirmation/{{ order.id }}" class="btn btn-outline btn-sm" {% if order.status not in ['paid','ready','picked_up','delivered'] %}style="opacity:0.4; pointer-events:none;"{% endif %}>View</a>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" style="text-align:center; padding:2rem; color:var(--text-dim);">No orders yet. Create a simulated one above.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <div style="padding:1rem 1.5rem; border-top:1px solid var(--border); font-size:0.75rem; color:var(--text-dim);">
+          Pipeline: <strong style="color:var(--text-muted);">Pending → Paid → Ready → Picked Up → Delivered</strong>
+          &nbsp;|&nbsp; At "Ready" the admin panel auto-books pickup via selected delivery partner.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  async function simulateOrder() {
+    const productId = document.getElementById('sim-product').value;
+    const size      = document.getElementById('sim-size').value;
+    const qty       = document.getElementById('sim-qty').value;
+    const resultEl  = document.getElementById('sim-result');
+
+    resultEl.innerHTML = '<span style="color:var(--text-muted);">Creating order…</span>';
+
+    const res = await fetch('/admin/test/simulate-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_id: productId, size, quantity: qty }),
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      resultEl.innerHTML = `<span style="color:var(--success);">✓ Order #${data.order_id} created! <a href="${data.redirect}" style="color:var(--accent);">View confirmation →</a></span>`;
+      showToast(`Order #${data.order_id} created!`, 'success');
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      resultEl.innerHTML = `<span style="color:var(--error);">✕ ${data.error}</span>`;
+    }
+  }
+
+  async function advanceStatus(orderId) {
+    const res = await fetch('/admin/test/advance-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order_id: orderId }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      const badge = document.getElementById(`status-${orderId}`);
+      if (badge) {
+        badge.className = `badge badge-${data.new_status}`;
+        badge.textContent = data.new_status.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+      }
+      showToast(`Order #${orderId} → ${data.new_status}`, 'success');
+    } else {
+      showToast(data.error, 'error');
+    }
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,116 @@
+{% extends "admin/layout.html" %}
+{% block title %}Coupons — {{ BRAND_NAME }} Admin{% endblock %}
+
+{% block content %}
+<div class="admin-topbar">
+  <h1 class="admin-page-title">COUPONS</h1>
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 360px; gap:2rem; align-items:start;">
+
+  <!-- Existing coupons -->
+  <div class="admin-card">
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Type</th>
+            <th>Value</th>
+            <th>Min Order</th>
+            <th>Used</th>
+            <th>Expires</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in coupons %}
+          <tr>
+            <td>
+              <span
+                style="font-family:monospace; font-size:0.875rem; font-weight:700; color:var(--accent); background:rgba(232,255,74,0.08); padding:0.2rem 0.5rem; border-radius:4px;">{{
+                c.code }}</span>
+            </td>
+            <td>{{ c.discount_type.title() }}</td>
+            <td>{{ ('₹' ~ c.discount_value|int) if c.discount_type == 'flat' else (c.discount_value|int ~ '%') }}</td>
+            <td>₹{{ c.min_order_amount|int }}</td>
+            <td style="color:{% if c.used_count >= c.max_uses %}var(--error){% else %}var(--text-muted){% endif %};">
+              {{ c.used_count }}/{{ c.max_uses }}
+            </td>
+            <td style="font-size:0.8rem; color:var(--text-muted);">
+              {{ c.expires_at.strftime('%d %b %Y') if c.expires_at else '—' }}
+            </td>
+            <td>
+              <span class="badge {% if c.is_active %}badge-delivered{% else %}badge-cancelled{% endif %}">
+                {{ 'Active' if c.is_active else 'Inactive' }}
+              </span>
+            </td>
+            <td>
+              <div style="display:flex; gap:0.5rem;">
+                <form method="POST" action="{{ url_for('admin.toggle_coupon', coupon_id=c.id) }}">
+                  <button type="submit" class="btn btn-outline btn-sm">{{ 'Disable' if c.is_active else 'Enable'
+                    }}</button>
+                </form>
+                <form method="POST" action="{{ url_for('admin.delete_coupon', coupon_id=c.id) }}"
+                  onsubmit="return confirm('Delete coupon {{ c.code }}?')">
+                  <button type="submit" class="btn btn-sm"
+                    style="background:rgba(239,68,68,0.1); color:var(--error); border:1px solid rgba(239,68,68,0.2);">Del</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="8" style="text-align:center; padding:3rem; color:var(--text-dim);">No coupons yet.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Add coupon form -->
+  <div class="admin-card">
+    <div class="admin-card-header">
+      <span
+        style="font-family:var(--font-ui); font-weight:700; font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em;">Create
+        Coupon</span>
+    </div>
+    <div style="padding:1.5rem;">
+      <form method="POST" action="{{ url_for('admin.add_coupon') }}">
+        <div class="form-group">
+          <label class="form-label">Code *</label>
+          <input type="text" name="code" class="form-input" required placeholder="GENX10"
+            style="text-transform:uppercase; letter-spacing:0.1em; font-family:monospace;">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Discount Type *</label>
+          <select name="discount_type" class="form-input">
+            <option value="flat">Flat (₹ off)</option>
+            <option value="percent">Percent (% off)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Discount Value *</label>
+          <input type="number" name="discount_value" class="form-input" required step="0.01" placeholder="100 or 20">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Minimum Order (₹)</label>
+          <input type="number" name="min_order_amount" class="form-input" value="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Max Uses</label>
+          <input type="number" name="max_uses" class="form-input" value="100" placeholder="100">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Expires At (optional)</label>
+          <input type="datetime-local" name="expires_at" class="form-input">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Create Coupon</button>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

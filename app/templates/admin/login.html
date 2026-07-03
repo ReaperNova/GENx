@@ -1,0 +1,26 @@
+{% extends "admin/layout.html" %}
+{% block title %}Admin Login — {{ BRAND_NAME }}{% endblock %}
+
+{% block content %}
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; margin-left:-260px;">
+  <div style="width:400px; padding:2.5rem; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg);">
+    <div style="text-align:center; margin-bottom:2rem;">
+      <div style="font-family:var(--font-display); font-size:3rem; color:var(--accent); line-height:1;">{{ BRAND_NAME }}</div>
+      <div style="font-size:0.75rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--text-dim); margin-top:0.25rem;">Admin Panel</div>
+    </div>
+    <form method="POST" action="{{ url_for('admin.login') }}">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-input" required autofocus placeholder="admin@genx.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" name="password" class="form-input" required placeholder="••••••••">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; margin-top:0.5rem;">
+        Sign In
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

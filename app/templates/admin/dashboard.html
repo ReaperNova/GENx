@@ -1,0 +1,55 @@
+{% extends "admin/layout.html" %}
+{% block title %}Dashboard — {{ BRAND_NAME }} Admin{% endblock %}
+
+{% block content %}
+<div class="admin-topbar">
+  <h1 class="admin-page-title">DASHBOARD</h1>
+  <div style="font-size:0.8rem; color:var(--text-dim);">{{ now.strftime('%A, %d %B %Y') }}</div>
+</div>
+
+<!-- Stat cards -->
+<div class="stat-cards">
+  {% for val, label, color in [
+    (stats.total_orders, 'Total Orders', 'var(--accent)'),
+    ('₹' ~ "{:,.0f}".format(stats.total_revenue), 'Revenue', 'var(--success)'),
+    (stats.pending_orders, 'Pending Orders', 'var(--warning)'),
+    (stats.total_products, 'Products', 'var(--text-primary)'),
+  ] %}
+  <div class="stat-card">
+    <div class="stat-value" style="color:{{ color }};">{{ val }}</div>
+    <div class="stat-label">{{ label }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Recent orders -->
+<div class="admin-card">
+  <div class="admin-card-header">
+    <span style="font-family:var(--font-ui); font-weight:700; font-size:0.875rem; letter-spacing:0.05em; text-transform:uppercase;">Recent Orders</span>
+    <a href="{{ url_for('admin.orders') }}" class="btn btn-dark btn-sm">View All</a>
+  </div>
+  <div class="table-responsive"><table class="data-table">
+    <thead>
+      <tr>
+        <th>#</th><th>Customer</th><th>Amount</th><th>Status</th><th>Date</th><th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for order in recent_orders %}
+      <tr>
+        <td style="color:var(--text-primary); font-weight:600;">#{{ order.id }}</td>
+        <td>{{ order.customer.name }}</td>
+        <td style="color:var(--accent); font-weight:700;">₹{{ "{:,.0f}".format(order.total_amount) }}</td>
+        <td><span class="badge badge-{{ order.status }}">{{ order.status.replace('_',' ').title() }}</span></td>
+        <td>{{ order.ordered_at.strftime('%d %b, %H:%M') }}</td>
+        <td>
+          <a href="{{ url_for('admin.order_detail', order_id=order.id) }}" class="btn btn-dark btn-sm">View</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-dim);">No orders yet</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

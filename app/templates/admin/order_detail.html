@@ -1,0 +1,140 @@
+{% extends "admin/layout.html" %}
+{% block title %}Order #{{ order.id }} — {{ BRAND_NAME }} Admin{% endblock %}
+
+{% block content %}
+<div class="admin-topbar">
+  <div>
+    <a href="{{ url_for('admin.orders') }}" style="color:var(--text-muted); font-size:0.85rem; text-decoration:none;">← Orders</a>
+    <h1 class="admin-page-title" style="margin-top:0.25rem;">ORDER #{{ order.id }}</h1>
+  </div>
+  <span class="badge badge-{{ order.status }}" style="font-size:0.9rem; padding:0.4rem 1rem;">{{ order.status.replace('_',' ').title() }}</span>
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 360px; gap:2rem; align-items:start;">
+
+  <!-- Left -->
+  <div>
+    <!-- Items -->
+    <div class="admin-card" style="margin-bottom:1.5rem;">
+      <div class="admin-card-header">
+        <span style="font-family:var(--font-ui); font-weight:700; font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em;">Order Items</span>
+      </div>
+      <div class="table-responsive"><table class="data-table">
+        <thead><tr><th>Product</th><th>Size</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
+        <tbody>
+          {% for item in order.items %}
+          <tr>
+            <td style="color:var(--text-primary); font-weight:600;">{{ item.product.name }}</td>
+            <td>{{ item.size or '—' }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>₹{{ "{:,.0f}".format(item.price_at_purchase) }}</td>
+            <td style="color:var(--accent); font-weight:700;">₹{{ "{:,.0f}".format(item.price_at_purchase * item.quantity) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+
+    <!-- Customer -->
+    <div class="admin-card" style="margin-bottom:1.5rem;">
+      <div class="admin-card-header">
+        <span style="font-family:var(--font-ui); font-weight:700; font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em;">Customer Details</span>
+      </div>
+      <div style="padding:1.5rem; display:flex; flex-direction:column; gap:0.5rem;">
+        {% for label, val in [
+          ('Name', order.customer.name),
+          ('Email', order.customer.email),
+          ('Phone', order.customer.phone or '—'),
+          ('Address', order.customer.address),
+        ] %}
+        <div style="display:flex; gap:1rem;">
+          <span style="font-size:0.75rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); min-width:72px;">{{ label }}</span>
+          <span style="font-size:0.875rem; color:var(--text-primary);">{{ val }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Delivery tracking -->
+    {% if order.tracking_id %}
+    <div class="admin-card">
+      <div class="admin-card-header">
+        <span style="font-family:var(--font-ui); font-weight:700; font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em;">Delivery Tracking</span>
+      </div>
+      <div style="padding:1.5rem; display:flex; flex-direction:column; gap:0.5rem;">
+        <div style="display:flex; gap:1rem;">
+          <span style="font-size:0.75rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); min-width:100px;">Partner</span>
+          <span style="color:var(--text-primary);">{{ order.delivery_partner | title }}</span>
+        </div>
+        <div style="display:flex; gap:1rem;">
+          <span style="font-size:0.75rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); min-width:100px;">Tracking ID</span>
+          <span style="color:var(--accent); font-family:monospace;">{{ order.tracking_id }}</span>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Right -->
+  <div>
+    <!-- Price summary -->
+    <div class="admin-card" style="margin-bottom:1.5rem;">
+      <div class="admin-card-header">
+        <span style="font-family:var(--font-ui); font-weight:700; font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em;">Payment Summary</span>
+      </div>
+      <div style="padding:1.5rem;">
+        {% for label, val in [
+          ('Subtotal', '₹' ~ "{:,.0f}".format(order.subtotal)),
+          ('Discount', '- ₹' ~ "{:,.0f}".format(order.discount_amount)),
+          ('Total Paid', '₹' ~ "{:,.0f}".format(order.total_amount)),
+        ] %}
+        <div class="summary-row {% if loop.last %}total{% endif %}">
+          <span>{{ label }}</span>
+          <span {% if loop.last %}style="color:var(--accent); font-family:var(--font-display); font-size:1.5rem;"{% endif %}>{{ val }}</span>
+        </div>
+        {% endfor %}
+        {% if order.payment_id %}
+        <div style="margin-top:1rem; font-size:0.75rem; color:var(--text-dim);">
+          Payment ID: <span style="color:var(--text-muted); font-family:monospace;">{{ order.payment_id }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Update status -->
+    <div class="admin-card">
+      <div class="admin-card-header">
+        <span style="font-family:var(--font-ui); font-weight:700; font-size:0.875rem; text-transform:uppercase; letter-spacing:0.05em;">Update Status</span>
+      </div>
+      <div style="padding:1.5rem;">
+        <form method="POST" action="{{ url_for('admin.update_order_status', order_id=order.id) }}">
+          <div class="form-group">
+            <label class="form-label">New Status</label>
+            <select name="status" class="form-input">
+              {% for s in ['pending','paid','ready','picked_up','delivered','cancelled'] %}
+              <option value="{{ s }}" {{ 'selected' if order.status == s }}>{{ s.replace('_',' ').title() }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          {% if available_partners %}
+          <div class="form-group">
+            <label class="form-label">Delivery Partner (set to "ready" to auto-book)</label>
+            <select name="delivery_partner" class="form-input">
+              {% for p in available_partners %}
+              <option value="{{ p }}" {{ 'selected' if order.delivery_partner == p }}>{{ p.title() }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+
+          <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">
+            Update Order
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }} — {{ BRAND_NAME }}{% endblock %}
+{% block meta_desc %}{{ product.description[:150] if product.description else product.name }} — Buy from {{ BRAND_NAME }}, {{ BRAND_CITY }}.{% endblock %}
+
+{% block content %}
+<div style="padding-top:6rem; padding-bottom:6rem;">
+  <div class="container">
+
+    <!-- Breadcrumb -->
+    <nav style="margin-bottom:2rem; font-size:0.8rem; color:var(--text-dim); display:flex; gap:0.5rem; align-items:center;">
+      <a href="/" data-transition style="color:var(--text-dim); text-decoration:none;">Home</a>
+      <span>›</span>
+      <a href="/shop" data-transition style="color:var(--text-dim); text-decoration:none;">Shop</a>
+      <span>›</span>
+      <a href="/shop?category={{ product.category.slug }}" data-transition style="color:var(--text-dim); text-decoration:none;">{{ product.category.name }}</a>
+      <span>›</span>
+      <span style="color:var(--text-primary);">{{ product.name }}</span>
+    </nav>
+
+    <!-- Product grid -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:4rem; align-items:start;">
+
+      <!-- ── LEFT: Image gallery ── -->
+      <div class="product-gallery fade-left">
+        <div class="product-main-img" id="main-img-wrap">
+          <img
+            id="main-product-img"
+            src="{{ product.images[0].image_url if product.images else '/static/images/placeholder.jpg' }}"
+            alt="{{ product.name }}"
+          >
+        </div>
+
+        {% if product.images|length > 1 %}
+        <div class="product-thumbnails">
+          {% for img in product.images %}
+          <div
+            class="thumbnail {% if loop.first %}active{% endif %}"
+            onclick="switchImage('{{ img.image_url }}', this)"
+          >
+            <img src="{{ img.image_url }}" alt="{{ product.name }} view {{ loop.index }}">
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- ── RIGHT: Product info ── -->
+      <div class="fade-right">
+        <div class="tag" style="margin-bottom:1rem;">{{ product.category.name }}</div>
+
+        <h1 style="font-family:var(--font-display); font-size:clamp(2.5rem,5vw,4rem); line-height:1; letter-spacing:0.02em; margin-bottom:0.75rem;">
+          {{ product.name.upper() }}
+        </h1>
+
+        <!-- Rating summary -->
+        {% if product.review_count > 0 %}
+        <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+          <div class="stars" style="font-size:1rem;">
+            {% for i in range(1,6) %}
+            <span class="star {% if i <= product.avg_rating|round %}filled{% endif %}">★</span>
+            {% endfor %}
+          </div>
+          <a href="#reviews" style="color:var(--text-muted); font-size:0.85rem; text-decoration:none;">
+            {{ "%.1f"|format(product.avg_rating) }} · {{ product.review_count }} review{{ 's' if product.review_count != 1 }}
+          </a>
+        </div>
+        {% endif %}
+
+        <!-- Price -->
+        <div style="font-family:var(--font-display); font-size:3rem; color:var(--accent); margin-bottom:1.5rem; line-height:1;">
+          ₹{{ "{:,.0f}".format(product.price) }}
+        </div>
+
+        <!-- Description -->
+        {% if product.description %}
+        <p style="color:var(--text-muted); line-height:1.8; font-size:0.95rem; margin-bottom:2rem; max-width:480px;">
+          {{ product.description }}
+        </p>
+        {% endif %}
+
+        <!-- Size picker -->
+        <div class="size-picker">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+            <label style="font-family:var(--font-ui); font-size:0.8rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-muted);">
+              Select Size
+            </label>
+            <a href="#" style="font-size:0.75rem; color:var(--accent); text-decoration:none;">Size Guide</a>
+          </div>
+          <div class="size-options">
+            {% for size in ['S','M','L','XL','XXL'] %}
+            <button class="size-btn" data-size="{{ size }}" type="button">{{ size }}</button>
+            {% endfor %}
+          </div>
+          <input type="hidden" id="selected-size" value="">
+          <p id="size-error" style="font-size:0.8rem; color:var(--error); margin-top:0.5rem; display:none;">Please select a size.</p>
+        </div>
+
+        <!-- Stock indicator -->
+        <div style="margin-bottom:1.5rem;">
+          {% if product.stock > 10 %}
+          <span style="font-size:0.8rem; color:var(--success);">● In Stock</span>
+          {% elif product.stock > 0 %}
+          <span style="font-size:0.8rem; color:var(--warning);">● Only {{ product.stock }} left!</span>
+          {% else %}
+          <span style="font-size:0.8rem; color:var(--error);">● Out of Stock</span>
+          {% endif %}
+        </div>
+
+        <!-- Add to cart -->
+        <div style="display:flex; gap:1rem; margin-bottom:1.5rem;">
+          {% if product.stock > 0 %}
+          <button
+            class="btn btn-primary btn-lg"
+            id="add-to-cart-btn"
+            style="flex:1; justify-content:center;"
+            onclick="handleAddToCart()"
+          >
+            Add to Bag
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/>
+            </svg>
+          </button>
+          {% else %}
+          <button class="btn btn-outline btn-lg" disabled style="flex:1; justify-content:center; opacity:0.5; cursor:not-allowed;">
+            Out of Stock
+          </button>
+          {% endif %}
+          <button class="btn btn-dark" style="width:52px; height:52px; padding:0; justify-content:center; border-radius:50%;" title="Wishlist">
+            ♡
+          </button>
+        </div>
+
+        <!-- Trust signals -->
+        <div style="display:flex; gap:1.5rem; flex-wrap:wrap; padding:1.25rem; background:var(--bg-card); border-radius:var(--radius); border:1px solid var(--border);">
+          {% for icon, text in [('🚚','Free delivery above ₹999'),('🔄','7-day easy returns'),('🔒','Secure Razorpay payment')] %}
+          <div style="display:flex; align-items:center; gap:0.5rem; font-size:0.78rem; color:var(--text-muted);">
+            <span>{{ icon }}</span><span>{{ text }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════
+         REVIEWS SECTION
+    ══════════════════════════════════ -->
+    <div id="reviews" style="margin-top:6rem;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:2rem;">
+        <div>
+          <div class="section-label">Customer Reviews</div>
+          <h2 class="section-title" style="margin-bottom:0;">WHAT THEY<br><span style="color:var(--accent);">SAY</span></h2>
+        </div>
+        {% if can_review %}
+        <button
+          class="btn btn-outline"
+          onclick="document.getElementById('write-review-form').classList.toggle('open')"
+        >Write a Review ✍️</button>
+        {% endif %}
+      </div>
+
+      <!-- Aggregate rating -->
+      {% if reviews %}
+      <div class="review-aggregate fade-up">
+        <div>
+          <div class="review-big-score">{{ "%.1f"|format(product.avg_rating) }}</div>
+          <div class="stars" style="font-size:1.5rem; margin-top:0.25rem;">
+            {% for i in range(1,6) %}
+            <span class="star {% if i <= product.avg_rating|round %}filled{% endif %}">★</span>
+            {% endfor %}
+          </div>
+          <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.25rem;">{{ product.review_count }} review{{ 's' if product.review_count != 1 }}</div>
+        </div>
+        <div style="flex:1;">
+          {% for star in range(5,0,-1) %}
+          {% set count = reviews | selectattr('star_rating','equalto',star) | list | length %}
+          <div class="review-bar">
+            <span class="review-bar-label">{{ star }}</span>
+            <div class="review-bar-track">
+              <div class="review-bar-fill" style="width:{{ (count/product.review_count*100)|int if product.review_count else 0 }}%"></div>
+            </div>
+            <span class="review-bar-count">{{ count }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Write review form -->
+      {% if can_review %}
+      <div class="write-review-form" id="write-review-form">
+        <h3 style="font-family:var(--font-ui); font-size:1.1rem; font-weight:700; margin-bottom:1.5rem;">Your Review</h3>
+        <form method="POST" action="/product/{{ product.id }}/review" enctype="multipart/form-data">
+          <input type="hidden" name="product_id" value="{{ product.id }}">
+          <input type="hidden" id="star-rating-input" name="star_rating" value="5">
+
+          <div class="form-group">
+            <label class="form-label">Rating</label>
+            <div class="star-picker">
+              {% for i in range(1,6) %}
+              <span class="star-pick active" data-val="{{ i }}">★</span>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="review-text">Your Experience</label>
+            <textarea id="review-text" name="review_text" class="form-input" rows="4" placeholder="Tell others what you think about this product..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Add Photos (up to 5)</label>
+            <input type="file" name="images" multiple accept="image/*" class="form-input" style="padding:0.6rem;">
+          </div>
+
+          <button type="submit" class="btn btn-primary">Submit Review</button>
+        </form>
+      </div>
+      {% elif not session.get('customer_id') %}
+      <div style="padding:1.5rem; background:var(--bg-card); border-radius:var(--radius); border:1px solid var(--border); color:var(--text-muted); font-size:0.9rem; margin-bottom:2rem;">
+        Purchase this product to leave a review.
+      </div>
+      {% endif %}
+
+      <!-- Review list -->
+      {% if reviews %}
+      <div style="margin-top:2rem;">
+        {% for review in reviews %}
+        <div class="review-card fade-up">
+          <div class="review-header">
+            <div class="reviewer-avatar">{{ review.customer.name[0].upper() }}</div>
+            <div style="flex:1;">
+              <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                <span class="reviewer-name">{{ review.customer.name }}</span>
+                <span class="verified-tag">✓ Verified Purchase</span>
+              </div>
+              <div style="display:flex; gap:0.25rem; margin-top:0.25rem;">
+                {% for i in range(1,6) %}
+                <span style="font-size:0.9rem; color:{% if i <= review.star_rating %}#fbbf24{% else %}var(--border-hover){% endif %};">★</span>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="review-date">{{ review.created_at.strftime('%d %b %Y') }}</div>
+          </div>
+
+          {% if review.review_text %}
+          <p class="review-text">{{ review.review_text }}</p>
+          {% endif %}
+
+          {% if review.images %}
+          <div class="review-images">
+            {% for img in review.images %}
+            <img src="{{ img.image_url }}" alt="Review photo" class="review-img"
+              onclick="window.open('{{ img.image_url }}','_blank')">
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div style="text-align:center; padding:4rem; color:var(--text-dim);">
+        <div style="font-size:2.5rem; margin-bottom:0.75rem;">💬</div>
+        <p style="font-family:var(--font-ui); font-weight:600;">No reviews yet</p>
+        <p style="font-size:0.85rem; margin-top:0.25rem;">Be the first to drop your thoughts.</p>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function handleAddToCart() {
+    const size = document.getElementById("selected-size").value;
+    const sizeError = document.getElementById("size-error");
+    if (!size) {
+      sizeError.style.display = "block";
+      gsap.fromTo("#size-error", {x:-8},{x:0,duration:0.4,ease:"elastic.out(1,0.3)"});
+      return;
+    }
+    sizeError.style.display = "none";
+    addToCart({
+      id: {{ product.id }},
+      name: "{{ product.name | replace('"', '\\"') }}",
+      price: {{ product.price }},
+      image: "{{ product.images[0].image_url if product.images else '/static/images/placeholder.jpg' }}",
+      size: size,
+      quantity: 1
+    });
+    // Button feedback
+    const btn = document.getElementById("add-to-cart-btn");
+    btn.innerHTML = "✓ Added!";
+    btn.style.background = "var(--success)";
+    setTimeout(() => {
+      btn.innerHTML = 'Add to Bag <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>';
+      btn.style.background = "";
+    }, 2000);
+  }
+</script>
+{% endblock %}
